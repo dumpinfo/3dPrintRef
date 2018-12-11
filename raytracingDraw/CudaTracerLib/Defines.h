@@ -1,0 +1,210 @@
+#pragma once
+
+#include <malloc.h>
+#include <stdlib.h>
+#include <string>
+#include <memory>
+
+namespace CudaTracerLib {
+
+#define EXT_TRI
+#define NUM_UV_SETS 1
+#define MAX_AREALIGHT_NUM 2
+
+#ifdef _MSC_VER
+#define ISWINDOWS
+#endif
+
+#ifdef CTL_EXPORT_SYMBOLS
+#define CTL_EXPORT __declspec(dllexport)
+#endif
+
+#ifdef CTL_IMPORT_SYMBOLS
+#define CTL_EXPORT __declspec(dllimport)
+#endif
+
+#ifndef CTL_EXPORT
+#define CTL_EXPORT
+#endif
+
+//__forceinline__
+#define CUDA_INLINE inline
+
+#ifdef __CUDACC__
+#define CUDA_FUNC inline __host__ __device__
+#define CUDA_FUNC_IN CUDA_INLINE __host__ __device__
+#define CUDA_ONLY_FUNC __device__ CUDA_INLINE
+#define CUDA_HOST __host__
+#define CUDA_DEVICE __device__
+#define CUDA_CONST __constant__
+#define CUDA_SHARED __shared__
+#define CUDA_GLOBAL __global__
+#define CUDA_LOCAL	__local__
+#define CUDA_VIRTUAL __device__ virtual
+#else
+#define CUDA_FUNC inline
+#define CUDA_FUNC_IN inline
+#define CUDA_ONLY_FUNC inline
+#define CUDA_HOST
+#define CUDA_DEVICE
+#define CUDA_CONST
+#define CUDA_SHARED
+#define CUDA_GLOBAL
+#define CUDA_LOCAL
+#define CUDA_VIRTUAL virtual
+#endif
+
+#ifdef __CUDA_ARCH__
+#define ISCUDA
+#endif
+
+#ifndef __func__
+#define __func__ __FUNCTION__
+#endif
+
+#if !defined(CUDA_RELEASE_BUILD)
+#if __CUDACC__
+#define CTL_ASSERT(X) ((X) ? ((void)0) : (void)printf("Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X))
+#else
+#define CTL_ASSERT(X) ((X) ? ((void)0) : throw std::runtime_error(format("Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X)))
+#endif
+#else
+//evaluate the expression either way, it possibly has side effects
+	CUDA_FUNC_IN void noop() {}
+#   define CTL_ASSERT(X) ((X) ? noop() : noop())
+#endif
+
+//code is from this great answer : http://stackoverflow.com/a/26221725/1715849
+template<typename ... Args> std::string format(const std::string& format, Args ... args)
+{
+	size_t size = snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
+	std::unique_ptr<char[]> buf(new char[size]);
+	snprintf(buf.get(), size, format.c_str(), args ...);
+	return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
+
+//http://stackoverflow.com/questions/12778949/cuda-memory-alignment
+//credit to harrsim!
+#if defined(__CUDACC__) // NVCC
+#define CUDA_ALIGN(n) __align__(n)
+#elif defined(__GNUC__) // GCC
+#define CUDA_ALIGN(n) __attribute__((aligned(n)))
+#elif defined(_MSC_VER) // MSVC
+#define CUDA_ALIGN(n) __declspec(align(n))
+#else
+#error "Please provide a definition for MY_ALIGN macro for your host compiler!"
+#endif
+
+CTL_EXPORT void __ThrowCudaErrors__(const char* file, int line, ...);
+#define ThrowCudaErrors(...) __ThrowCudaErrors__(__FILE__, __LINE__, ##__VA_ARGS__, -1)
+
+template<typename T> CUDA_FUNC_IN void swapk(T& a, T& b)
+{
+	T q = a;
+	a = b;
+	b = q;
+}
+
+CUDA_FUNC_IN unsigned int getGlobalIdx_2D_2D()
+{
+#ifdef ISCUDA
+	unsigned int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+	unsigned int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+	return threadId;
+#else
+	return 0u;
+#endif
+}
+
+#define DMAX2(A, B) ((A) > (B) ? (A) : (B))
+#define DMAX3(A, B, C) DMAX2(DMAX2(A, B), C)
+#define DMAX4(A, B, C, D) DMAX2(DMAX3(A, B, C), D)
+#define DMAX5(A, B, C, D, E) DMAX2(DMAX4(A, B, C, D), E)
+#define DMAX6(A, B, C, D, E, F) DMAX2(DMAX5(A, B, C, D, E), F)
+#define DMAX7(A, B, C, D, E, F, G) DMAX2(DMAX6(A, B, C, D, E, F), G)
+#define DMAX8(A, B, C, D, E, F, G, H) DMAX2(DMAX7(A, B, C, D, E, F, G), H)
+#define DMAX9(A, B, C, D, E, F, G, H, I) DMAX2(DMAX8(A, B, C, D, E, F, G, H), I)
+
+#define DMIN2(A, B) ((A) < (B) ? (A) : (B))
+#define DMIN3(A, B, C) DMIN2(DMIN2(A, B), C)
+#define DMIN4(A, B, C, D) DMIN2(DMIN3(A, B, C), D)
+#define DMIN5(A, B, C, D, E) DMIN2(DMIN4(A, B, C, D), E)
+#define DMIN6(A, B, C, D, E, F) DMIN2(DMIN5(A, B, C, D, E), F)
+#define DMIN7(A, B, C, D, E, F, G) DMIN2(DMIN6(A, B, C, D, E, F), G)
+#define DMIN8(A, B, C, D, E, F, G, H) DMIN2(DMIN7(A, B, C, D, E, F, G), H)
+#define DMIN9(A, B, C, D, E, F, G, H, I) DMIN2(DMIN8(A, B, C, D, E, F, G, H), I)
+
+#define RND_UP(VAL, MOD) (VAL + (((VAL) % (MOD)) != 0 ? ((MOD) - ((VAL) % (MOD))) : (0)))
+#define RND_16(VAL) RND_UP(VAL, 16)
+
+CTL_EXPORT void CudaSetToZero(void* dest, size_t length);
+CTL_EXPORT void CudaSetToZero_FreeBuffer();
+template<typename T> inline void ZeroMemoryCuda(T* cudaVar)
+{
+	CudaSetToZero(cudaVar, sizeof(T));
+}
+#define ZeroSymbol(SYMBOL) \
+	{ \
+		void* tar = 0; \
+		ThrowCudaErrors(cudaGetSymbolAddress(&tar, SYMBOL)); \
+		CudaSetToZero(tar, sizeof(SYMBOL)); \
+	}
+
+#define CopyToSymbol(SYMBOL, value) \
+	{ \
+		void* tar = 0; \
+		ThrowCudaErrors(cudaGetSymbolAddress(&tar, SYMBOL)); \
+		ThrowCudaErrors(cudaMemcpy(tar, &value, sizeof(value), cudaMemcpyHostToDevice)); \
+	}
+
+#define CopyFromSymbol(value, SYMBOL) \
+	{ \
+		void* tar = 0; \
+		ThrowCudaErrors(cudaGetSymbolAddress(&tar, SYMBOL)); \
+		ThrowCudaErrors(cudaMemcpy(&value, tar, sizeof(value), cudaMemcpyDeviceToHost)); \
+	}
+
+template<typename T> struct CudaStaticWrapper
+{
+protected:
+	CUDA_ALIGN(256) unsigned char m_data[sizeof(T)];
+public:
+	CUDA_FUNC_IN CudaStaticWrapper()
+	{
+
+	}
+	CUDA_FUNC_IN operator const T& () const
+	{
+		return As();
+	}
+	CUDA_FUNC_IN operator T& ()
+	{
+		return As();
+	}
+	CUDA_FUNC_IN T* operator->()
+	{
+		return &As();
+	}
+	CUDA_FUNC_IN const T* operator->() const
+	{
+		return &As();
+	}
+	CUDA_FUNC_IN T& operator*()
+	{
+		return As();
+	}
+	CUDA_FUNC_IN const T& operator*() const
+	{
+		return As();
+	}
+	CUDA_FUNC_IN const T& As() const
+	{
+		return *(T*)m_data;
+	}
+	CUDA_FUNC_IN T& As()
+	{
+		return *(T*)m_data;
+	}
+};
+
+}

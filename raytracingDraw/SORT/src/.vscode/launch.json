@@ -1,0 +1,71 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "Build (Debug)",
+            "program": "${workspaceFolder}/../bin/sort_d",
+            "args": ["${workspaceFolder}/../bin/intermediate/sort_scene.xml"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../bin",
+            "environment": [],
+            "externalConsole": true,
+            "osx":{
+                "MIMode": "lldb"
+            },
+            "linux":{
+                "MIMode":"gdb"
+            },
+            "windows":{
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/../bin/sort_d.exe"
+            }
+        },
+        {
+            "name": "Run Release",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "Build (Release)",
+            "program": "${workspaceFolder}/../bin/sort_r",
+            "args": ["${workspaceFolder}/../bin/intermediate/sort_scene.xml"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../bin",
+            "environment": [],
+            "externalConsole": true,
+            "osx":{
+                "MIMode": "lldb"
+            },
+            "linux":{
+                "MIMode":"gdb"
+            },
+            "windows":{
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/../bin/sort_r.exe"
+            }
+        },
+        {
+            "name": "Run Unit Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "Build (Release)",
+            "program": "${workspaceFolder}/../bin/sort_r",
+            "args": ["unittest"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../bin",
+            "environment": [],
+            "externalConsole": true,
+            "osx":{
+                "MIMode": "lldb"
+            },
+            "linux":{
+                "MIMode":"gdb"
+            },
+            "windows":{
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/../bin/sort_r.exe"
+            }
+        }
+    ]
+}
